@@ -1,0 +1,7 @@
+python3 ysos.py run -p debug -d
+python3 ysos.py build -p debug
+make debug
+b jump_to_entry
+run
+si
+info registers rdi rsp
