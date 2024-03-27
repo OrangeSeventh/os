@@ -58,6 +58,8 @@ impl SerialPort {
 
             // If serial is not faulty, set it in normal operation mode
             self.modem_control_port.write(0x0F);
+            // (lab2) 为串口开启中断
+            self.interrupt_enable_port.write(0x01);
         }
     }
 

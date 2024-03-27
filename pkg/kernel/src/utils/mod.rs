@@ -1,5 +1,5 @@
 #[macro_use]
-mod macros;
+pub(crate) mod macros;
 
 pub mod logger;
 pub use macros::*;

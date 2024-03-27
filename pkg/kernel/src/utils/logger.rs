@@ -1,19 +1,20 @@
 use log::{LevelFilter, Metadata, Record};
 
-pub fn init(log_level: &'static str) {
+pub fn init() {
     static LOGGER: Logger = Logger;
     log::set_logger(&LOGGER).unwrap();
-    let level = match log_level {
-        "trace" => LevelFilter::Trace,
-        "debug" => LevelFilter::Debug,
-        "info" => LevelFilter::Info,
-        "warn" => LevelFilter::Warn,
-        "error" => LevelFilter::Error,
+    log::set_max_level(match option_env!("LOG_LEVEL") {
+        Some("error") => LevelFilter::Error,
+        Some("warn") => LevelFilter::Warn,
+        Some("info") => LevelFilter::Info,
+        Some("debug") => LevelFilter::Debug,
+        Some("trace") => LevelFilter::Trace,
         _ => LevelFilter::Info,  // 默认日志级别为 info
-    };
+    });
     // FIXME: Configure the logger
-    log::set_max_level(level);  //设置日志级别过滤器
-    info!("Logger Initialized with log level: {}", log_level);
+    info!("Current log level: {}", log::max_level());
+
+    info!("Logger Initialized.");
 }
 
 struct Logger;

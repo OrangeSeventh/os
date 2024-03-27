@@ -5,3 +5,50 @@ b jump_to_entry
 run
 si
 info registers rdi rsp
+
+
+
+调节时钟中断的频率通常涉及到对 Programmable Interval Timer (PIT) 或 Advanced Programmable Interrupt Controller (APIC) 中的计时器进行配置。这里，我们假设你使用的是 APIC 的计时器。在 xAPIC 模式下，APIC 提供了一个内置的定时器，你可以通过设置其分频值（Divide Configuration Register，TDCR）和初始计数值（Initial Count Register，TICR）来调整时钟中断的频率。
+
+步骤简述
+设置 TDCR (分频系数寄存器): 控制计时器时钟频率相对于 APIC 时钟频率的分频。分频值越大，计时器的计数频率越低。
+
+设置 TICR (初始计数寄存器): 控制从设定值递减到 0 所需要的时间。初始计数值越大，达到中断触发点的时间就越长。
+
+通过调整这两个寄存器的值，你可以改变时钟中断的触发频率。如果想要将频率调整为原来的一半，可以将 TICR 的值增加到原来的两倍，或者将 TDCR 的分频系数加倍，这取决于当前的配置和你希望达到的效果。
+
+示例代码
+以下是一个简化的示例，展示了如何调整 TICR 来改变时钟频率。假设你已经有了设置 APIC 计时器的基础代码。
+
+```rust
+
+// 假设这些是用于访问 APIC 计时器寄存器的函数
+fn write_to_ticr(value: u32);
+fn write_to_tdcr(value: u32);
+
+// 假设这是当前的初始计数值
+let current_ticr_value: u32 = 0x10000; // 仅示例值
+
+// 将计数值调整为原来的两倍来减半时钟中断频率
+let new_ticr_value = current_ticr_value * 2;
+
+write_to_ticr(new_ticr_value);
+
+// 如果需要调整分频系数，可以类似地操作 TDCR
+// 例如，将分频系数加倍
+// 注意：实际的分频值设置依赖于硬件文档中的定义
+// let current_tdcr_value: u32 = 0b0000; // 示例：分频系数为 1
+// let new_tdcr_value = 0b0001; // 示例：修改分频系数为 2
+// write_to_tdcr(new_tdcr_value);
+```
+
+注意事项
+调整时钟频率时，应考虑实际应用场景和系统的需求，以确保更改不会影响系统的稳定性和性能。
+确切的寄存器地址和如何编程地写入它们，依赖于你使用的具体硬件和操作系统环境。你需要参考相关的硬件手册和开发文档。
+本示例中的函数 write_to_ticr 和 write_to_tdcr 并不是真实存在的函数，你需要根据你的开发环境实现对应的功能，可能涉及到直接与硬件寄存器进行交互。
+通过调整这些参数，你可以控制时钟中断的频率，以满足应用程序或操作系统的具体需求。
+
+
+
+
+

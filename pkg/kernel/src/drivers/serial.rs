@@ -1,5 +1,7 @@
-use super::uart16550::SerialPort;
 use spin::Mutex;
+
+use super::uart16550::SerialPort;
+
 const SERIAL_IO_PORT: u16 = 0x3F8; // COM1 串行端口的I/O地址
 
 once_mutex!(pub SERIAL: SerialPort); // 只初始化一次
