@@ -25,16 +25,30 @@
 #![no_std]
 #![no_main]
 
+use core::arch::asm;
+
 use ysos::*;
 use ysos_kernel as ysos;
 
 extern crate alloc;
 
 boot::entry_point!(kernel_main);
-
+fn write_to_address(address: usize, value: u8) {
+      unsafe {
+        asm!(
+          "mov [{0}], {1}",
+          in(reg) address,
+          in(reg_byte) value,
+          options(nostack, nomem, preserves_flags),
+        );
+      }
+}
 pub fn kernel_main(boot_info: &'static boot::BootInfo) -> ! {
     ysos::init(boot_info);
-
+    write_to_address(0xffffff0000000000, 42);
+    unsafe {
+        asm!("mov eax, 0; div eax", options(nomem, nostack));
+    }
     loop {
         print!("> ");
         let input = input::get_line();

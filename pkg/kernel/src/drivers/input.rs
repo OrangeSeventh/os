@@ -6,7 +6,7 @@ use spin::Mutex;
 use core::sync::atomic::{AtomicBool, Ordering};
 use crate::drivers::uart16550::SerialPort;
 
-// 定义你的输入数据类型，这里简单使用u8作为例子
+// 定义输入数据类型，这里简单使用u8作为例子
 type Key = u8;
 
 // 初始化无锁输入缓冲区

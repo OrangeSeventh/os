@@ -1,5 +1,5 @@
 use crate::interrupt::consts::{Interrupts, Irq};
-
+use bitflags::bitflags;
 use super::LocalApic;
 use bit_field::BitField;
 use core::fmt::{Debug, Error, Formatter};
@@ -8,6 +8,29 @@ use x86::cpuid::CpuId;
 
 /// Default physical address of xAPIC
 pub const LAPIC_ADDR: u64 = 0xFEE00000;
+
+bitflags!{
+    struct SpiVFlags: u32 {
+        const ENABLED = 1 << 8;
+    }
+
+    struct LvtTimerFlags: u32 {
+        const MASK = 1 << 16;
+        const PERIODIC_MODE = 1 << 17;
+        const VECTOR_MASK = 0xFF;
+    }
+
+    struct DeliveryStatusFlags: u32 {
+        const IDLE = 0;
+        const SEND_PENDING = 1 << 12;
+    }
+
+    struct IcrFlags: u64 {
+        const BROADCAST = 1 << 19;
+        const INIT = 5 << 8;
+        const LEVEL_ASSERT = 1 << 15;
+    }
+}
 
 pub struct XApic {
     addr: u64,
@@ -42,7 +65,7 @@ impl LocalApic for XApic {
         unsafe {
             // FIXME: Enable local APIC; set spurious interrupt vector.
             let mut spiv = self.read(0xF0);
-            spiv |= 1 << 8; // set EN bit
+            spiv |= SpiVFlags::ENABLED.bits(); // set EN bit
             // clear and set Vector
             spiv &= !(0xFF);
             spiv |= Interrupts::IrqBase as u32 + Irq::Spurious as u32;
@@ -50,11 +73,14 @@ impl LocalApic for XApic {
             // FIXME: The timer repeatedly counts down at bus frequency
             let mut lvt_timer = self.read(0x320);
             // clear and set Vector
-            lvt_timer &= !(0xFF);
+            lvt_timer &= !LvtTimerFlags::VECTOR_MASK.bits();
             lvt_timer |= Interrupts::IrqBase as u32 + Irq::Timer as u32;
-            lvt_timer &= !(1 << 16); // clear Mask
-            lvt_timer |= 1 << 17; // set Timer Periodic Mode
+            lvt_timer &= !LvtTimerFlags::MASK.bits(); // clear Mask
+            lvt_timer |= LvtTimerFlags::PERIODIC_MODE.bits(); // set Timer Periodic Mode
             self.write(0x320, lvt_timer);
+            
+            self.write(0x3E0, 0b1011); // set Timer Divide to 1
+            self.write(0x380, 0x20000); // set initial count to 0x20000
             // FIXME: Disable logical interrupt lines (LINT0, LINT1)
             self.write(0x350, 1 << 16); // set Mask
             self.write(0x360, 1 << 16); 
@@ -68,11 +94,16 @@ impl LocalApic for XApic {
             // FIXME: Ack any outstanding interrupts.
             self.write(0x0B0, 0);
             // FIXME: Send an Init Level De-Assert to synchronise arbitration ID's.
-            self.write(0x310, 0); // set ICR 0x310
-            const BCAST: u32 = 1 << 19;
-            const INIT: u32 = 5 << 8;
-            const TMLV: u32 = 1 << 15; // TM = 1, LV = 0
-            self.write(0x300, BCAST | INIT | TMLV); // set ICR 0x300
+
+            // const BCAST: u32 = 1 << 19;
+            // const INIT: u32 = 5 << 8;
+            // const TMLV: u32 = 1 << 15; // TM = 1, LV = 0
+            // self.write(0x310, 0); // set ICR 0x310            
+            // self.write(0x300, BCAST | INIT | TMLV); // set ICR 0x300
+            let icr_high = IcrFlags::BROADCAST.bits();
+            let icr_low = IcrFlags::INIT.bits() | IcrFlags::LEVEL_ASSERT.bits();
+            self.write(0x310, (icr_high >> 32) as u32);
+            self.write(0x300, icr_low as u32);
             const DS: u32 = 1 << 12;
             while self.read(0x300) & DS != 0 {} // wait for delivery status
             // FIXME: Enable interrupts on the APIC (but not on the processor).
