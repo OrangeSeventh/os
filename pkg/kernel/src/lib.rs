@@ -32,12 +32,15 @@ pub mod interrupt;
 pub use alloc::format;
 use boot::BootInfo;
 
+pub mod proc;
+
 pub fn init(boot_info: &'static BootInfo) {
     serial::init(); // init serial output
     logger::init(); // init logger system
     memory::address::init(boot_info);
     memory::gdt::init(); // init gdt
     memory::allocator::init(); // init kernel heap allocator
+    proc::init(); // 进程管理器初始化
     interrupt::init(); // init interrupts
     memory::init(boot_info); // init memory manager
 

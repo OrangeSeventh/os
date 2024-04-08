@@ -7,7 +7,7 @@ use x86_64::VirtAddr;
 
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
 pub const PAGE_FAULT_IST_INDEX: u16 = 1;
-
+pub const CLOCK_IST_INDEX: u16 = 2;
 pub const IST_SIZES: [usize; 3] = [0x1000, 0x1000, 0x1000];
 
 lazy_static! {
@@ -55,6 +55,19 @@ lazy_static! {
                 stack_start.as_u64(),
                 stack_end.as_u64()
             ); // 打印Page Fault堆栈的起始地址和结束地址
+            stack_end
+        };
+        // 设置时钟中断堆栈
+        tss.interrupt_stack_table[CLOCK_IST_INDEX as usize] = {
+            const STACK_SIZE: usize = IST_SIZES[CLOCK_IST_INDEX as usize];
+            static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
+            let stack_start = VirtAddr::from_ptr(unsafe { STACK.as_ptr() });
+            let stack_end = stack_start + STACK_SIZE as u64;
+            info!(
+                "Clock Interrupt Stack: 0x{:016x}-0x{:016x}",
+                stack_start.as_u64(),
+                stack_end.as_u64()
+            );
             stack_end
         };
         tss
