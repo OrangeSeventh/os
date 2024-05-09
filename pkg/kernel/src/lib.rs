@@ -32,6 +32,7 @@ pub mod interrupt;
 pub use alloc::format;
 use boot::BootInfo;
 
+pub use elf;
 pub mod proc;
 
 pub fn init(boot_info: &'static BootInfo) {
@@ -40,10 +41,10 @@ pub fn init(boot_info: &'static BootInfo) {
     memory::address::init(boot_info);
     memory::gdt::init(); // init gdt
     memory::allocator::init(); // init kernel heap allocator
-    proc::init(); // 进程管理器初始化
+    proc::init(boot_info); // 进程管理器初始化
     interrupt::init(); // init interrupts
     memory::init(boot_info); // init memory manager
-
+    info!("memory Enabled.");
     x86_64::instructions::interrupts::enable();
     info!("Interrupts Enabled.");
 

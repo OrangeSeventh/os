@@ -4,23 +4,26 @@ use x86_64::structures::paging::{
     page::{PageRange, PageRangeInclusive},
     Page,
 };
-
+use crate::{resource, ResourceSet};
 use super::*;
 
 #[derive(Debug, Clone)]
 pub struct ProcessData {
     // shared data
     pub(super) env: Arc<RwLock<BTreeMap<String, String>>>,
-
+    pub(super) resources: Arc<RwLock<ResourceSet>>,
     // process specific data
-    pub(super) stack_segment: Option<PageRange>
+    pub(super) stack_segment: Option<PageRange>,
+    pub(super) code_segments: Option<Vec<PageRangeInclusive>>,
 }
 
 impl Default for ProcessData {
     fn default() -> Self {
         Self {
             env: Arc::new(RwLock::new(BTreeMap::new())),
-            stack_segment: None
+            resources: Arc::new(RwLock::new(ResourceSet::default())),
+            stack_segment: None,
+            code_segments: None,
         }
     }
 }
@@ -43,7 +46,41 @@ impl ProcessData {
         self.stack_segment = Some(Page::range(start, start + size));
     }
 
-    pub fn is_on_stack(&self, addr: VirtAddr) -> bool {
-        // FIXME: check if the address is on the stack
+    pub fn read(&self, fd: u8, buf: &mut [u8]) -> isize {
+        self.resources.read().read(fd, buf)
     }
+    
+    pub fn write(&self, fd: u8, buf: &[u8]) -> isize {
+        self.resources.read().write(fd, buf)
+    }
+    
+    pub fn is_on_stack(&self, addr: VirtAddr) -> bool {
+        info!("enter is on stack");
+        if let Some(stack_range) = self.stack_segment {
+
+            let addr = addr.as_u64();
+
+            let start = stack_range.start.start_address().as_u64();
+
+            let end = stack_range.end.start_address().as_u64();
+
+            // Check if the address falls within the stack range
+            // if addr >= start && addr < end {
+            //     return true;
+            // }
+    
+            // Alternatively, check if the address aligns with the expected stack region
+            // using the STACK_START_MASK
+            let cur_stack_bot = start;
+            trace!("Current stack bot: {:#x}", cur_stack_bot);
+            trace!("Address to access: {:#x}", addr);
+            info!("{:#x} {:#x}", addr, cur_stack_bot);
+            addr & STACK_START_MASK == cur_stack_bot & STACK_START_MASK
+        } else {
+            debug!("No stack segment found");
+            false
+        }
+    }
+    
+    
 }

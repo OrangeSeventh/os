@@ -86,11 +86,50 @@ impl Process {
         inner.kill(ret);
     }
 
-    pub fn alloc_init_stack(&self) -> VirtAddr {
+    pub fn alloc_init_stack(&mut self) -> VirtAddr {
         // FIXME: alloc init stack base on self pid
 
-        VirtAddr::new(0)
+        // let stack_size = STACK_DEF_SIZE;
+        // let stack_start = VirtAddr::new(self.pid.0 as u64 *stack_size + STACK_INIT_BOT);
+        // let stack_end = stack_start + stack_size;
+
+        // let frame_allocator = &mut *get_frame_alloc_for_sure();
+        // let mut page_table = unsafe { crate::memory::active_level_4_table() };
+
+        // let page_range = {
+        //     let stack_start_page = Page::containing_address(stack_start);
+        //     let stack_end_page = Page::containing_address(stack_end - 1u64);
+        //     Page::range_inclusive(stack_start_page, stack_end_page)
+        // };
+        
+        // for page in page_range {
+        //     let frame = frame_allocator
+        //     .allocate_frame()
+        //     .expect("no more frames");
+        //     unsafe {
+        //         page_table.map_to(page, frame, x86_64::structures::paging::PageTableFlags::WRITABLE, frame_allocator)
+        //         .expect("map_to failed")
+        //         .flush();
+        //     }
+        // }
+
+        let mut inner = self.inner.write();
+        let frame_allocator = &mut *get_frame_alloc_for_sure();
+        let page_table = inner.page_table.as_ref().unwrap();
+        let stack_bot = STACK_INIT_BOT - ( self.pid.0 as u64 -1 ) * STACK_DEF_SIZE;
+        let stack_top = stack_bot + STACK_DEF_SIZE - 8;
+        elf::map_range(
+            stack_bot,
+            STACK_DEF_PAGE,
+            &mut page_table.mapper(),
+            frame_allocator,
+            true,
+        )
+        .unwrap();
+        inner.proc_data.as_mut().unwrap().set_stack(VirtAddr::new(stack_bot), STACK_DEF_PAGE);
+        VirtAddr::new(stack_top)
     }
+
 }
 
 impl ProcessInner {
@@ -125,18 +164,26 @@ impl ProcessInner {
     pub fn is_ready(&self) -> bool {
         self.status == ProgramStatus::Ready
     }
-
+    pub fn init_stack_frame(&mut self, entry: VirtAddr, stack_top: VirtAddr){
+        self.context.init_stack_frame(entry, stack_top)
+    }
     /// Save the process's context
     /// mark the process as ready
     pub(super) fn save(&mut self, context: &ProcessContext) {
         // FIXME: save the process's context
+        context.restore(&mut self.context);
+        self.pause();
     }
 
     /// Restore the process's context
     /// mark the process as running
     pub(super) fn restore(&mut self, context: &mut ProcessContext) {
         // FIXME: restore the process's context
-
+        self.context.restore(context);
+        if let Some(page_table) = self.page_table.as_ref() {
+            page_table.load();
+            self.resume();
+        }
         // FIXME: restore the process's page table
     }
 
@@ -146,11 +193,66 @@ impl ProcessInner {
 
     pub fn kill(&mut self, ret: isize) {
         // FIXME: set exit code
-
+        self.exit_code = Some(ret);
         // FIXME: set status to dead
-
+        self.status = ProgramStatus::Dead;
         // FIXME: take and drop unused resources
+        // lab3的时候写的
+        // self.page_table = None;
+        // self.proc_data = None;
+        // 改为lab4的删除进程数据
+        self.proc_data.take();
+        self.page_table.take();
+        info!("kill completed,status {:#?}",self.status);
+        // for child in self.children.iter(){
+        //     let mut child_inner = child.inner.write();
+        //     child_inner.parent = None;
+        // }
+        // self.children.clear();
     }
+
+    pub fn handle_stack_page_fault(&mut self, fault_addr:VirtAddr) -> bool {
+        info!("handle_stack_page_fault,{:?}", fault_addr);
+        let frame_alloc = &mut *get_frame_alloc_for_sure();
+
+        let proc_data = self.proc_data.as_mut().unwrap();
+
+        let mapper = &mut self.page_table.as_ref().unwrap().mapper();
+        let start_page = Page::<Size4KiB>::containing_address(fault_addr);
+        let count = proc_data.stack_segment.unwrap().start - start_page;   
+        info!("{:?}", count);
+        let res = elf::map_range(start_page.start_address().as_u64(), count, mapper, frame_alloc, true);
+        if res.is_err() {
+            info!("Failed to map stack page : {:?}", res);
+            return false;
+        }
+        let now_pagerange = proc_data.stack_segment.unwrap();    
+        let now_pagenum = now_pagerange.end - now_pagerange.start;
+        proc_data.set_stack(start_page.start_address(), now_pagenum + count);
+        true
+    }
+
+    pub fn load_elf(&mut self, elf: &ElfFile, pid: u64) -> u64 {
+        let frame_alloc = &mut *get_frame_alloc_for_sure();
+        let page_table = self.page_table.as_mut().unwrap();
+        let mut mapper = page_table.mapper();
+        let stack_bot = STACK_INIT_BOT - (pid - 1) * STACK_MAX_SIZE;
+        let code_segments = elf::load_elf(
+            elf,
+            *PHYSICAL_OFFSET.get().unwrap(),
+            &mut mapper,
+            frame_alloc,
+            true
+        ).unwrap();
+        let stack_segment = elf::map_range(stack_bot, STACK_DEF_PAGE, &mut mapper, frame_alloc, true).unwrap();
+
+        let proc_data = self.proc_data.as_mut().unwrap();
+        proc_data.code_segments = Some(code_segments);
+        proc_data.stack_segment = Some(stack_segment);
+        stack_bot
+    }
+
+
 }
 
 impl core::ops::Deref for Process {

@@ -10,10 +10,11 @@ pub use uefi::table::runtime::*;
 pub use uefi::table::Runtime;
 pub use uefi::Status as UefiStatus;
 
-use arrayvec::ArrayVec;
+use arrayvec::{ArrayString, ArrayVec};
 use x86_64::VirtAddr;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::{OffsetPageTable, PageTable};
+use xmas_elf::ElfFile;
 
 pub mod allocator;
 pub mod config;
@@ -37,6 +38,9 @@ pub struct BootInfo {
 
     /// UEFI SystemTable
     pub system_table: SystemTable<Runtime>,
+
+    // Loaded apps
+    pub loaded_apps: Option<AppList>,
 }
 
 /// Get current page table from CR3
@@ -90,3 +94,25 @@ macro_rules! entry_point {
         }
     };
 }
+
+// App information
+const MAX_APPS: usize = 16;
+pub struct App<'a> {
+    /// The name of app
+    pub name: ArrayString<16>,
+    /// The ELF file
+    pub elf: ElfFile<'a>,
+}
+
+pub type AppList = ArrayVec<App<'static>, MAX_APPS>;
+//  尝试定义 AppListRef 类型，用于存储 loaded_apps.as_ref() 的返回值类型
+pub type AppListRef = &'static AppList;
+
+
+
+// This structure represents the information that the bootloader passes to the kernel.
+// pub struct BootInfo {
+//     // ...
+//     // Loaded apps
+//     pub loaded_apps: Option<AppList>,
+// }

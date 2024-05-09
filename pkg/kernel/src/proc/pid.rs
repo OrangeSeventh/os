@@ -3,9 +3,13 @@ use core::sync::atomic::{AtomicU16, Ordering};
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ProcessId(pub u16);
 
+static PID_COUNTER: AtomicU16 = AtomicU16::new(1); // Start from 1 to avoid using 0 as a PID
+
 impl ProcessId {
     pub fn new() -> Self {
-        // FIXME: Get a unique PID
+         // Increment the global PID counter and use the new value as the PID
+         let pid = PID_COUNTER.fetch_add(1, Ordering::SeqCst);
+         ProcessId(pid)
     }
 }
 

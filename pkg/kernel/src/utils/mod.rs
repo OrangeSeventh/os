@@ -6,12 +6,14 @@ mod regs;
 // pub mod clock;
 pub mod func;
 pub mod logger;
-
+pub use manager::get_process_manager;
 use alloc::format;
 pub use macros::*;
 pub use regs::*;
 
 use crate::proc::*;
+pub mod resource;
+pub use resource::ResourceSet;
 
 pub const fn get_ascii_header() -> &'static str {
     concat!(
@@ -27,39 +29,43 @@ __  __      __  _____            ____  _____
     )
 }
 
-pub fn new_test_thread(id: &str) -> ProcessId {
-    let proc_data = ProcessData::new();
-    proc_data.set_env("id", id);
+// pub fn new_test_thread(id: &str) -> ProcessId {
+//     let mut proc_data = ProcessData::new();
+//     proc_data.set_env("id", id);
+//     spawn_kernel_thread(
+//         func::test,
+//         format!("#{}_test", id),
+//         Some(proc_data),
+//     )
+// }
 
-    spawn_kernel_thread(
-        func::test,
-        format!("#{}_test", id),
-        Some(proc_data),
-    )
-}
+// pub fn new_stack_test_thread() {
+//     let pid = spawn_kernel_thread(
+//         func::stack_test,
+//         alloc::string::String::from("stack"),
+//         None,
+//     );
 
-pub fn new_stack_test_thread() {
-    let pid = spawn_kernel_thread(
-        func::stack_test,
-        alloc::string::String::from("stack"),
-        None,
-    );
+//     // wait for progress exit
+//     wait(pid);
+// }
 
-    // wait for progress exit
-    wait(pid);
-}
-
-fn wait(pid: ProcessId) {
+pub fn wait(pid: ProcessId) {
+    
     loop {
-        // FIXME: try to get the status of the process
+            {
+            // 尝试获取进程的退出状态
+            // let exit_code = get_process_manager().get_proc(&pid).unwrap().read().exit_code();
+            let exit_code = get_process_manager().get_exit_code(pid);
+            if exit_code.is_none() {                   
+                x86_64::instructions::hlt();
+                }
 
-        // HINT: it's better to use the exit code
-
-        if /* FIXME: is the process exited? */ {
-            x86_64::instructions::hlt();
-        } else {
-            break;
-        }
+            else{
+                break;
+            }
+            
+        };
     }
 }
 const SHORT_UNITS: [&str; 4] = ["B", "K", "M", "G"];

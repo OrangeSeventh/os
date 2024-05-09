@@ -4,13 +4,14 @@ pub fn init() {
     static LOGGER: Logger = Logger;
     log::set_logger(&LOGGER).unwrap();
     log::set_max_level(match option_env!("LOG_LEVEL") {
-        Some("error") => LevelFilter::Error,
-        Some("warn") => LevelFilter::Warn,
-        Some("info") => LevelFilter::Info,
-        Some("debug") => LevelFilter::Debug,
-        Some("trace") => LevelFilter::Trace,
-        _ => LevelFilter::Info,  // 默认日志级别为 info
+        // Some("error") => LevelFilter::Error,
+        // Some("warn") => LevelFilter::Warn,
+        // Some("info") => LevelFilter::Info,
+        // Some("debug") => LevelFilter::Debug,
+        // Some("trace") => LevelFilter::Trace,
+        _ => LevelFilter::Trace,  // 默认日志级别为 info
     });
+    log::set_max_level(LevelFilter::Trace);
     // FIXME: Configure the logger
     info!("Current log level: {}", log::max_level());
 

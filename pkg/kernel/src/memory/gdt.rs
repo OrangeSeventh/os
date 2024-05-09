@@ -1,5 +1,4 @@
 use lazy_static::lazy_static;
-use x86::bits64::rflags::stac;
 use x86_64::registers::segmentation::Segment;
 use x86_64::structures::gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector};
 use x86_64::structures::tss::TaskStateSegment;
@@ -8,7 +7,8 @@ use x86_64::VirtAddr;
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
 pub const PAGE_FAULT_IST_INDEX: u16 = 1;
 pub const CLOCK_IST_INDEX: u16 = 2;
-pub const IST_SIZES: [usize; 3] = [0x1000, 0x1000, 0x1000];
+pub const SYSCALL_IST_INDEX: u16 = 3;
+pub const IST_SIZES: [usize; 4] = [0x1000, 0x1000, 0x1000, 0x1000];
 
 lazy_static! {
     static ref TSS: TaskStateSegment = {
@@ -70,22 +70,41 @@ lazy_static! {
             );
             stack_end
         };
+        // 软中断处理
+        tss.interrupt_stack_table[SYSCALL_IST_INDEX as usize] = {
+            const STACK_SIZE: usize = IST_SIZES[SYSCALL_IST_INDEX as usize];
+            static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
+            let stack_start = VirtAddr::from_ptr(unsafe { STACK.as_ptr() });
+            let stack_end = stack_start + STACK_SIZE as u64;
+            info!(
+                "Clock Interrupt Stack: 0x{:016x}-0x{:016x}",
+                stack_start.as_u64(),
+                stack_end.as_u64()
+            );
+            stack_end
+        };
         tss
     };
 }
 
 lazy_static! {
-    static ref GDT: (GlobalDescriptorTable, KernelSelectors) = {
+    static ref GDT: (GlobalDescriptorTable, KernelSelectors, UserSelectors) = {
         let mut gdt = GlobalDescriptorTable::new(); // 创建一个新的GlobalDescriptorTable实例
         let code_selector = gdt.append(Descriptor::kernel_code_segment());  // 向GDT中追加内核代码段描述符
         let data_selector = gdt.append(Descriptor::kernel_data_segment());  // 最佳内核数据段描述符
         let tss_selector = gdt.append(Descriptor::tss_segment(&TSS));
+        let user_code_selector = gdt.append(Descriptor::user_code_segment());
+        let user_data_selector = gdt.append(Descriptor::user_data_segment());
         (
             gdt,
             KernelSelectors { // 返回初始化后的KernelSelectors
                 code_selector,
                 data_selector,
                 tss_selector,
+            },
+            UserSelectors {
+                user_code_selector,
+                user_data_selector,
             },
         )
     };
@@ -96,6 +115,15 @@ pub struct KernelSelectors {
     pub code_selector: SegmentSelector,
     pub data_selector: SegmentSelector,
     tss_selector: SegmentSelector,
+}
+#[derive(Clone, Copy, Debug)]
+pub struct UserSelectors {
+    pub user_code_selector: SegmentSelector,
+    pub user_data_selector: SegmentSelector,
+}
+
+pub fn get_user_selector() -> UserSelectors {
+    GDT.2
 }
 
 pub fn init() {

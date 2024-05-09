@@ -1,4 +1,4 @@
-use crate::drivers::serial::get_serial;
+use crate::{drivers::serial::get_serial, serial::SERIAL};
 use core::fmt::*;
 use x86_64::instructions::interrupts;
 
@@ -66,6 +66,7 @@ pub fn print_internal(args: Arguments) {
 #[allow(dead_code)]
 #[cfg_attr(not(test), panic_handler)]
 fn panic(info: &core::panic::PanicInfo) -> ! {
+    unsafe { SERIAL.get().unwrap().force_unlock() };
     error!("ERROR: panic!\n\n{:#?}", info);
     loop {}
 }

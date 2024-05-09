@@ -23,7 +23,7 @@ const CONFIG_PATH: &str = "\\EFI\\BOOT\\boot.conf";
 fn efi_main(image: uefi::Handle, mut system_table: SystemTable<Boot>) -> Status {
     uefi_services::init(&mut system_table).expect("Failed to initialize utilities");
 
-    log::set_max_level(log::LevelFilter::Info);
+    log::set_max_level(log::LevelFilter::Debug);
     info!("Running UEFI bootloader...");
 
     let bs = system_table.boot_services();
@@ -86,6 +86,7 @@ fn efi_main(image: uefi::Handle, mut system_table: SystemTable<Boot>) -> Status 
         config.physical_memory_offset,
         &mut page_table,
         &mut UEFIFrameAllocator(bs),
+        false,
     );
     // FIXME: map kernel stack
     let stack_start;
@@ -108,6 +109,7 @@ fn efi_main(image: uefi::Handle, mut system_table: SystemTable<Boot>) -> Status 
         stack_size,
         &mut page_table,
         &mut UEFIFrameAllocator(bs),
+        false
     )
     .expect("Failed to map stack");
 
@@ -116,7 +118,19 @@ fn efi_main(image: uefi::Handle, mut system_table: SystemTable<Boot>) -> Status 
         Cr0::update(|flags|  flags.insert(Cr0Flags::WRITE_PROTECT));
     }
     free_elf(bs, elf);
+    
 
+    // 根据配置选项按需加载用户程序，并将其信息传递给内核
+
+    let apps = if config.load_apps {
+        info!("Loading apps...");
+        Some(load_apps(system_table.boot_services()))
+    } else {
+        info!("Skip loading apps");
+        None
+    };
+
+    
     // 5. Exit boot and jump to ELF entry
     info!("Exiting boot services...");
 
@@ -128,6 +142,7 @@ fn efi_main(image: uefi::Handle, mut system_table: SystemTable<Boot>) -> Status 
         memory_map: mmap.entries().copied().collect(),
         physical_memory_offset: config.physical_memory_offset,
         system_table: runtime,
+        loaded_apps: apps,
     };
 
     // align stack to 8 bytes
