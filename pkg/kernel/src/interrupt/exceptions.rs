@@ -144,17 +144,17 @@ pub extern "x86-interrupt" fn page_fault_handler(
     //     Cr2::read().unwrap_or(VirtAddr::new_truncate(0xdeadbeef)),
     //     stack_frame
     // );
-    if !crate::proc::handle_page_fault(Cr2::read().unwrap(), err_code) {
-        warn!(
-            "EXCEPTION: PAGE FAULT, ERROR_CODE: {:?}\n\nTrying to access: {:#x}\n{:#?}",
-            err_code,
-            Cr2::read().unwrap(),
-            stack_frame
-        );
-        // FIXME: print info about which process causes page fault?
-        crate::proc::info_cur_proc();
-        panic!("Cannot handle page fault!");
-    }
+    warn!(
+        "EXCEPTION: PAGE FAULT, ERROR_CODE: {:#?}\n\nTrying to access: {:#x}\n{:#?}",
+        err_code,
+        Cr2::read().unwrap(),
+        stack_frame
+    );
+    panic!("Cannot handle page fault!");
+    // if !crate::proc::handle_page_fault(Cr2::read().unwrap(), err_code) {
+    //     // FIXME: print info about which process causes page fault?
+    //     crate::proc::info_cur_proc();
+    // }
 }
 // General Protection Fault (GPF) 处理函数
 pub extern "x86-interrupt" fn general_protection_fault_handler(

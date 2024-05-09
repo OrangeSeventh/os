@@ -7,6 +7,7 @@ edition = "2021"
 [dependencies]
 elf = { package = "ysos_elf", path = "../elf" }
 boot = { package = "ysos_boot", path = "../boot", default-features = false }
+syscall_def = { package = "ysos_syscall", path = "../syscall"}
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 crossbeam-queue = { version = "0.3", default-features = false, features = ["alloc"] }
 paste = "1.0"

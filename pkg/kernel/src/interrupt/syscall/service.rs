@@ -1,6 +1,7 @@
 use core::alloc::Layout;
 
-use crate::proc::*;
+use crate::proc;
+use crate::proc::ProcessContext;
 use crate::utils::*;
 
 use super::SyscallArgs;
@@ -19,7 +20,7 @@ pub fn spawn_process(args: &SyscallArgs) -> usize {
         core::str::from_utf8_unchecked(core::slice::from_raw_parts(name_ptr, name_len))
     };
     match proc::spawn(name) {
-        Some(pid) => pid as usize,
+        Some(pid) => pid.0 as usize,
         None => 0, // 如果进程创建失败，返回 0
     }
     // 0
@@ -36,10 +37,7 @@ pub fn sys_write(args: &SyscallArgs) -> usize {
 
     let buf = unsafe { core::slice::from_raw_parts(ptr, len) };
     // write(fd, buf) as usize
-    match proc::write(fd, buf) {
-        Ok(count) => count as usize,
-        Err(_) => 0, // 通常，错误处理会返回特定错误代码
-    }
+    proc::write(fd, buf) as usize
 }
 
 pub fn sys_read(args: &SyscallArgs) -> usize {
@@ -50,24 +48,22 @@ pub fn sys_read(args: &SyscallArgs) -> usize {
 
     let buf = unsafe { core::slice::from_raw_parts_mut(ptr, len) };
     // read(fd ,buf) as usize
-    match proc::read(fd, buf) {
-        Ok(count) => count as usize,
-        Err(_) => 0, // 同样，错误处理通常返回特定错误代码
-    }
+     proc::read(fd, buf) as usize
 }
 
 pub fn exit_process(args: &SyscallArgs, context: &mut ProcessContext) {
     // FIXME: exit process with retcode
-    let retcode = args.arg0 as i32;
-    proc::exit(context, retcode);
+    let retcode = args.arg0 as isize;
+    info!("exit_process: {}", retcode);
+    proc::exit(retcode, context);
 }
 
 pub fn list_process() {
     // FIXME: list all processes
-    let processes = proc::list_all;
-    for p in processes {
-        println!("Process ID: {}, Name: {}", p.pid(), p.name());
-    }
+    // let processes = proc::print_process_list();
+    // for p in processes {
+    //     println!("Process ID: {}, Name: {}", p.pid(), p.name());
+    // }
 }
 
 pub fn sys_allocate(args: &SyscallArgs) -> usize {

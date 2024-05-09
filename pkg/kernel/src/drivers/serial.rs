@@ -23,7 +23,7 @@ pub fn init() {
     //let mut serial_guard = get_serial_for_sure();
     //serial_guard.init(); // 直接在获取的 MutexGuard 上调用
     get_serial_for_sure().init();
-    clear_screen();
+    // clear_screen();
 
     println!("{}", crate::get_ascii_header());
     println!("[+] Serial Initialized.");

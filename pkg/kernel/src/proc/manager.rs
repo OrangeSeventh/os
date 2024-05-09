@@ -4,21 +4,20 @@ use crate::memory::{
     allocator::{ALLOCATOR, HEAP_SIZE},
     get_frame_alloc_for_sure, PAGE_SIZE,
 };
-use alloc::{collections::*, format,sync::*};
+use alloc::{collections::*, format, sync::*};
 use spin::{Mutex, RwLock};
 
 pub static PROCESS_MANAGER: spin::Once<ProcessManager> = spin::Once::new();
 
 pub fn init(init: Arc<Process>, app_list: boot::AppListRef) {
-
     // FIXME: set init process as Running
     processor::set_pid(init.pid());
     // FIXME: set processor's current pid to init's pid
-    
+
     // 在初始化时加载app_list
     let mut manager = ProcessManager::new(init);
     manager.set_app_list(app_list);
-    
+
     PROCESS_MANAGER.call_once(|| manager);
 }
 
@@ -50,7 +49,6 @@ impl ProcessManager {
         }
     }
 
-
     // 设置app_list的方法
     pub fn set_app_list(&mut self, app_list: boot::AppListRef) {
         self.app_list = Some(app_list);
@@ -59,7 +57,6 @@ impl ProcessManager {
     pub fn app_list(&self) -> Option<&boot::AppList> {
         self.app_list.as_ref().map(|app_list| &**app_list)
     }
-
 
     #[inline]
     pub fn push_ready(&self, pid: ProcessId) {
@@ -81,39 +78,39 @@ impl ProcessManager {
             .expect("No current process")
     }
 
-    pub fn save_current(&self, context: &ProcessContext) -> ProcessId{
-        // // FIXME: update current process's tick count
-        // let current = self.current();
-        // let current_pid = current.pid();
-        // if let Some(process) = self.get_proc(&current_pid) {
-        //     let mut process_inner = process.write();
-        //     // FIXME: update current process's context
-        //     process_inner.tick();
-        //     // 保存当前进程的上下文
-        //     process_inner.save(context);
-        //     // FIXME: push current process to ready queue if still alive
-        //     if process_inner.status() != ProgramStatus::Dead {
-        //         self.push_ready(current_pid);
-        //     }
-        // }
-        // current_pid
+    pub fn save_current(&self, context: &ProcessContext) -> ProcessId {
+        // FIXME: update current process's tick count
+        let current = self.current();
+        let current_pid = current.pid();
+        if let Some(process) = self.get_proc(&current_pid) {
+            let mut process_inner = process.write();
+            // FIXME: update current process's context
+            process_inner.tick();
+            // 保存当前进程的上下文
+            process_inner.save(context);
+            // FIXME: push current process to ready queue if still alive
+        }
+        current_pid
 
         // lab4
-        let current = self.current();
-        let pid = current.pid();
-        let mut current = current.write();
-        if pid.0 == 2 {
-        // info!("Saving process {} {:?}", pid,context);
-        }
-        current.tick();
-        current.save(context);
-        pid
+        // let current = self.current();
+        // let pid = current.pid();
+        // let mut current = current.write();
+        // if pid.0 == 2 {
+        // // info!("Saving process {} {:?}", pid,context);
+        // }
+        // current.tick();
+        // current.save(context);
+
+        // self.push_ready(pid);
+
+        // pid
     }
 
     pub fn switch_next(&self, context: &mut ProcessContext) -> ProcessId {
         let mut pid = processor::get_pid();
         // FIXME: fetch the next process from ready queue
-        let mut ready_queue = self.ready_queue.lock();
+        // let mut ready_queue = self.ready_queue.lock();
         // info!("queue{:?}",ready_queue);
         // FIXME: check if the next process is ready,
 
@@ -133,14 +130,16 @@ impl ProcessManager {
         //         if next_process_inner.status() == ProgramStatus::Ready {
         //             next_process_inner.restore(context);
         //             processor::set_pid(next_pid);
-        //             // info!("Switched to process {}\n", next_pid.0);      
+        //             // info!("Switched to process {}\n", next_pid.0);
         //             return next_pid;
         //         }
-               
+
         //     }
 
         // }
         //panic!("No ready process found to switch to");
+
+        // self.print_process_list();
 
         while let Some(next) = self.ready_queue.lock().pop_front() {
             let map = self.processes.read();
@@ -157,15 +156,12 @@ impl ProcessManager {
                 pid = next;
             }
             // if pid.0 == 2 {
-                info!("Current process: {:#?} Current context{:#?}", pid,context);
+            // info!("Current process: {:#?} Current context{:#?}", pid,context);
             // }
             break;
         }
 
-
-
-
-        pid  // Return the current PID if no suitable next process is found
+        pid // Return the current PID if no suitable next process is found
     }
 
     // pub fn spawn_kernel_thread(
@@ -211,8 +207,11 @@ impl ProcessManager {
         let mut process_inner = process.write();
 
         // 检查是否为越权访问错误
-        if err_code.contains(PageFaultErrorCode::PROTECTION_VIOLATION){
-            warn!("Protection violation at address {:#x}, PID: {}", addr, current_pid);
+        if err_code.contains(PageFaultErrorCode::PROTECTION_VIOLATION) {
+            warn!(
+                "Protection violation at address {:#x}, PID: {}",
+                addr, current_pid
+            );
             return false;
         }
         info!("before is on stack");
@@ -224,7 +223,10 @@ impl ProcessManager {
         // info!("fbck");
         let flag = !process_inner.is_on_stack(addr);
         if flag {
-            warn!("Page fault at non-stack address {:#x}, PID: {}", addr, current_pid);
+            warn!(
+                "Page fault at non-stack address {:#x}, PID: {}",
+                addr, current_pid
+            );
             return false;
         }
         info!("stack");
@@ -256,7 +258,6 @@ impl ProcessManager {
 
         // // 更新进程的栈空间信息
         // process_inner.expand_stack(pages_needed * PAGE_SIZE);
-
     }
 
     // 这是lab3的kill
@@ -298,17 +299,17 @@ impl ProcessManager {
         print!("{}", output);
     }
     pub fn get_exit_code(&self, pid: ProcessId) -> Option<isize> {
-       let proc_opt = self.get_proc(&pid);
-       if let Some(proc) = proc_opt {
-           let proc_inner = proc.read();
-           if proc_inner.status() == ProgramStatus::Dead {
-               proc_inner.exit_code()
-           } else {
+        let proc_opt = self.get_proc(&pid);
+        if let Some(proc) = proc_opt {
+            let proc_inner = proc.read();
+            if proc_inner.status() == ProgramStatus::Dead {
+                proc_inner.exit_code()
+            } else {
                 None
-           }
-       } else {
+            }
+        } else {
             None
-       }
+        }
     }
 
     pub fn spawn(
@@ -334,7 +335,6 @@ impl ProcessManager {
         // // FIXME: mark process as ready
         // // drop(inner);
 
-
         inner.pause();
         // info!("2"); Y
         // trace!("New {:#?}", &proc);
@@ -343,17 +343,19 @@ impl ProcessManager {
         let stack_top = stack_bot + STACK_DEF_SIZE - 8;
         // info!("4");
         inner.init_stack_frame(
-            VirtAddr::new_truncate(elf.header.pt2.entry_point()),//获取 ELF 文件的入口地址
+            VirtAddr::new_truncate(elf.header.pt2.entry_point()), //获取 ELF 文件的入口地址
             VirtAddr::new_truncate(stack_top),
         );
         // info!("5");
         drop(inner);
 
-
         // FIXME: something like kernel thread
         self.add_proc(pid, proc);
         // info!("6");
         self.push_ready(pid);
+
+        self.print_process_list();
+
         pid
     }
 
@@ -367,9 +369,10 @@ impl ProcessManager {
 
     pub fn kill_self(&self, ret: isize) {
         let current_pid = self.current().pid();
+        info!("Process: {} is killed", current_pid);
         self.kill(current_pid, ret);
     }
-    
+
     pub fn kill(&self, pid: ProcessId, ret: isize) {
         if let Some(process) = self.get_proc(&pid) {
             info!("Process: {} is killed", pid);
@@ -378,7 +381,7 @@ impl ProcessManager {
     }
     pub fn still_alive(&self, pid: ProcessId) -> bool {
         self.get_proc(&pid)
-        .map(|p| p.read().status() != ProgramStatus::Dead)
-        .unwrap_or(false)
+            .map(|p| p.read().status() != ProgramStatus::Dead)
+            .unwrap_or(false)
     }
 }

@@ -3,6 +3,7 @@ mod consts;
 pub mod clock;
 mod serial;
 mod exceptions;
+mod syscall;
 
 use apic::*;
 use x86::cpuid::CpuId;
@@ -18,6 +19,7 @@ lazy_static! {
             clock::register_idt(&mut idt);
             // TODO: serial::register_idt(&mut idt);
             serial::register_idt(&mut idt);
+            syscall::register_idt(&mut idt);
         }
         idt
     };

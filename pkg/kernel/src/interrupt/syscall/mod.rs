@@ -15,7 +15,7 @@ pub unsafe fn register_idt(idt: &mut InterruptDescriptorTable) {
     // FIXME: register syscall handler to IDT
     //        - standalone syscall stack
     //        - ring 3
-    idt[consts::Interrupts::Syscall as usize]
+    idt[consts::Interrupts::Syscall as u8]
         .set_handler_fn(syscall_handler)
         .set_stack_index(gdt::SYSCALL_IST_INDEX)
         .set_privilege_level(x86_64::PrivilegeLevel::Ring3);
@@ -46,7 +46,7 @@ pub fn dispatcher(context: &mut ProcessContext) {
     );
 
     // NOTE: you may want to trace syscall arguments
-    // trace!("{}", args);
+    debug!("{}", args);
 
     match args.syscall {
         // fd: arg0 as u8, buf: &[u8] (ptr: arg1 as *const u8, len: arg2)

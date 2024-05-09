@@ -6,9 +6,9 @@ macro_rules! entry {
     ($fn:ident) => {
         #[export_name = "_start"]
         pub extern "C" fn __impl_start() {
-            let ret = $fn();
+            // let ret = $fn();
             // FIXME: after syscall, add lib::sys_exit(ret);
-            lib::sys_exit(ret);
+            lib::sys_exit(0);
             // loop {}  可以正常退出后即可删除循环
         }
     };

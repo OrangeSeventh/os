@@ -6,9 +6,9 @@ mod regs;
 // pub mod clock;
 pub mod func;
 pub mod logger;
-pub use manager::get_process_manager;
 use alloc::format;
 pub use macros::*;
+pub use manager::get_process_manager;
 pub use regs::*;
 
 use crate::proc::*;
@@ -51,21 +51,15 @@ __  __      __  _____            ____  _____
 // }
 
 pub fn wait(pid: ProcessId) {
-    
     loop {
-            {
-            // 尝试获取进程的退出状态
-            // let exit_code = get_process_manager().get_proc(&pid).unwrap().read().exit_code();
-            let exit_code = get_process_manager().get_exit_code(pid);
-            if exit_code.is_none() {                   
-                x86_64::instructions::hlt();
-                }
-
-            else{
-                break;
-            }
-            
-        };
+        // 尝试获取进程的退出状态
+        // let exit_code = get_process_manager().get_proc(&pid).unwrap().read().exit_code();
+        let exit_code = get_process_manager().get_exit_code(pid);
+        if exit_code.is_none() {
+            x86_64::instructions::hlt();
+        } else {
+            break;
+        }
     }
 }
 const SHORT_UNITS: [&str; 4] = ["B", "K", "M", "G"];

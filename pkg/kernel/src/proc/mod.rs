@@ -91,11 +91,11 @@ pub fn switch(context: &mut ProcessContext) {
         process_manager.push_ready(pid);
 
         // 切换到下一个进程，并更新上下文
-        let next_pid = process_manager.switch_next(context);
-       info!("current process id:{}\n",next_pid.0);
-    //     // 更新处理器 状态，比如当前进程ID
-    //     processor::set_pid(next_pid);
         process_manager.switch_next(context);
+        //  info!("current process id:{}\n",next_pid.0);
+        //     // 更新处理器 状态，比如当前进程ID
+        //     processor::set_pid(next_pid);
+        // process_manager.switch_next(context);
     });
 }
 
@@ -184,15 +184,10 @@ pub fn spawn(name: &str) -> Option<ProcessId> {
 pub fn elf_spawn(name: String, elf: &ElfFile) -> Option<ProcessId> {
     let pid = x86_64::instructions::interrupts::without_interrupts(|| {
         let manager = get_process_manager();
-        // info!("1"); Y
-        let process_name = name.to_lowercase();
-        // info!("2"); Y       
         let parent = Arc::downgrade(&manager.current());
-        // info!("3"); Y       
-        let pid = manager.spawn(elf, name, Some(parent), None);
-        info!("4");
-        debug!("Spawned process: {}#{}", process_name, pid);
-        info!("elf_spawn end!");
+        // info!("3"); Y
+        let pid = manager.spawn(elf, name.to_lowercase(), Some(parent), None);
+
         pid
     });
 

@@ -102,7 +102,7 @@ fn efi_main(image: uefi::Handle, mut system_table: SystemTable<Boot>) -> Status 
     }
 
     let stacktop = config.kernel_stack_address + config.kernel_stack_size * 0x1000 - 8;
-    info!("stacktop {}", stacktop);
+    info!("stack {:#x} {:#x}", stack_start, stacktop);
 
     elf::map_range(
         stack_start,
