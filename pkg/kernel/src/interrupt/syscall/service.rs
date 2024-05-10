@@ -98,3 +98,12 @@ pub fn sys_deallocate(args: &SyscallArgs) {
             .deallocate(core::ptr::NonNull::new_unchecked(ptr), *layout);
     }
 }
+
+pub fn sys_wait_pid(args: &SyscallArgs, context: &mut ProcessContext) {
+    let pid = proc::ProcessId(args.arg0 as u16);
+    proc::wait_pid(pid, context);
+}
+
+pub fn sys_get_pid() -> u16 {
+    proc::get_current_pid().0
+}

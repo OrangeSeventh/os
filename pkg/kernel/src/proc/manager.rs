@@ -58,6 +58,12 @@ impl ProcessManager {
         self.app_list.as_ref().map(|app_list| &**app_list)
     }
 
+    pub fn wait_pid(&self, pid:ProcessId) -> Option<isize>{
+        if let Some(exit_code) = self.get_exit_code(pid){
+            return Some(exit_code);
+        }
+        None
+    }
     #[inline]
     pub fn push_ready(&self, pid: ProcessId) {
         self.ready_queue.lock().push_back(pid);
@@ -298,6 +304,7 @@ impl ProcessManager {
 
         print!("{}", output);
     }
+    
     pub fn get_exit_code(&self, pid: ProcessId) -> Option<isize> {
         let proc_opt = self.get_proc(&pid);
         if let Some(proc) = proc_opt {

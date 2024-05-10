@@ -75,5 +75,6 @@ pub fn sys_get_pid() -> u16 {
 #[inline(always)]
 pub fn sys_exit(code: isize) -> ! {
     syscall!(Syscall::Exit, code as u64);
-    unreachable!("This process should be terminated by now.")
+    // unreachable!("This process should be terminated by now.")
+    loop{}
 }

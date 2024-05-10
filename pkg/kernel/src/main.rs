@@ -14,19 +14,7 @@ pub fn kernel_main(boot_info: &'static boot::BootInfo) -> ! {
     // proc::list_app();
     info!("init start");
     spawn_init();
-    // ysos::wait(spawn_init());
-    let mut count = 0;
-    loop {
-        // TODO: better way to show more than one process is running?
-        count += 1;
-        if count == 100000 {
-            count = 0;
-            break;
-        }
-        unsafe {
-            x86_64::instructions::hlt();
-        }
-    }
+    ysos::wait(spawn_init());
     ysos::shutdown(boot_info);
 }
 

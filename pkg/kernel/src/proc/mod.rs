@@ -218,3 +218,18 @@ pub fn still_alive(pid: ProcessId) -> bool {
         get_process_manager().still_alive(pid)
     })
 }
+
+pub fn wait_pid(pid: ProcessId, context: &mut ProcessContext) {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let manager = get_process_manager();
+        if let Some(ret) = manager.wait_pid(pid) {
+            context.set_rax(ret as usize)
+        } else {
+            manager.save_current(context);
+            manager.switch_next(context);
+        }
+    })
+}
+pub fn get_current_pid() -> ProcessId {
+    x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().current().pid())
+}
