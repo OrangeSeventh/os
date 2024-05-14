@@ -1,5 +1,5 @@
 use syscall_def::Syscall;
-
+use chrono::{DateTime, Utc};
 #[inline(always)]
 pub fn sys_write(fd: u8, buf: &[u8]) -> Option<usize> {
     let ret = syscall!(
@@ -35,7 +35,7 @@ pub fn sys_wait_pid(pid: u16) -> isize {
     // FIXME: try to get the return value for process
     //        loop until the process is finished
     loop {
-        let ret = syscall!(Syscall::WaitPid, pid as u64) as isize;
+        let ret = syscall!(Syscall::WaitPid, pid as u64, 0, 0) as isize;
         if ret >= 0 {
             return ret;
         }
@@ -75,6 +75,12 @@ pub fn sys_get_pid() -> u16 {
 #[inline(always)]
 pub fn sys_exit(code: isize) -> ! {
     syscall!(Syscall::Exit, code as u64);
-    // unreachable!("This process should be terminated by now.")
-    loop{}
+    unreachable!("This process should be terminated by now.")
+}
+
+#[inline(always)]
+pub fn sys_time() -> DateTime<Utc> {
+    let time = syscall!(Syscall::Time) as i64;
+    const BILLION: i64 = 1_000_000_000;
+    DateTime::from_timestamp(time / BILLION, (time % BILLION) as u32).unwrap_or_default()
 }

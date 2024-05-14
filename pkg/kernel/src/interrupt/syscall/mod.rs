@@ -46,7 +46,7 @@ pub fn dispatcher(context: &mut ProcessContext) {
     );
 
     // NOTE: you may want to trace syscall arguments
-    debug!("{}", args);
+    // debug!("{}", args);
 
     match args.syscall {
         // fd: arg0 as u8, buf: &[u8] (ptr: arg1 as *const u8, len: arg2)
@@ -74,7 +74,7 @@ pub fn dispatcher(context: &mut ProcessContext) {
         // None
         /* FIXME: list available apps */
         Syscall::ListApp => list_app(),
-
+        Syscall::Time => context.set_rax(sys_clock() as usize),
         // ----------------------------------------------------
         // NOTE: following syscall examples are implemented
         // ----------------------------------------------------

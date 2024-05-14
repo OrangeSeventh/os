@@ -15,6 +15,8 @@ pub struct ProcessData {
     // process specific data
     pub(super) stack_segment: Option<PageRange>,
     pub(super) code_segments: Option<Vec<PageRangeInclusive>>,
+    pub(super) stack_memory: usize,    
+    pub(super) code_memory: usize,
 }
 
 impl Default for ProcessData {
@@ -24,6 +26,8 @@ impl Default for ProcessData {
             resources: Arc::new(RwLock::new(ResourceSet::default())),
             stack_segment: None,
             code_segments: None,
+            stack_memory: 0,
+            code_memory: 0,
         }
     }
 }
@@ -44,6 +48,7 @@ impl ProcessData {
     pub fn set_stack(&mut self, start: VirtAddr, size: u64) {
         let start = Page::containing_address(start);
         self.stack_segment = Some(Page::range(start, start + size));
+        self.stack_memory = size as usize;
     }
 
     pub fn read(&self, fd: u8, buf: &mut [u8]) -> isize {
@@ -81,6 +86,8 @@ impl ProcessData {
             false
         }
     }
-    
+    pub fn get_memory_usage(&self) -> usize {
+        self.stack_memory + self.code_memory
+    }
     
 }

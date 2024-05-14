@@ -29,19 +29,19 @@ pub extern "C" fn clock(mut context: ProcessContext) {
 
 as_handler!(clock);
 
-// 定义一个原子类型的静态变量 COUNTER，用于计数时钟中断发生的次数
-static COUNTER: AtomicU64 = AtomicU64::new(0);
+// // 定义一个原子类型的静态变量 COUNTER，用于计数时钟中断发生的次数
+// static COUNTER: AtomicU64 = AtomicU64::new(0);
 
-// 读取当前的计数器值
-#[inline]
-pub fn read_counter() -> u64 {
-    // 使用 Relaxed 顺序加载 COUNTER 的值
-    COUNTER.load(Ordering::Relaxed)
-}
+// // 读取当前的计数器值
+// #[inline]
+// pub fn read_counter() -> u64 {
+//     // 使用 Relaxed 顺序加载 COUNTER 的值
+//     COUNTER.load(Ordering::Relaxed)
+// }
 
-// 增加计数器的值并返回新值
-#[inline]
-pub fn inc_counter() -> u64 {
-    // 使用 Relaxed 顺序增加 COUNTER 的值，返回增加后的值
-    COUNTER.fetch_add(1, Ordering::Relaxed) + 1
-}
+// // 增加计数器的值并返回新值
+// #[inline]
+// pub fn inc_counter() -> u64 {
+//     // 使用 Relaxed 顺序增加 COUNTER 的值，返回增加后的值
+//     COUNTER.fetch_add(1, Ordering::Relaxed) + 1
+// }

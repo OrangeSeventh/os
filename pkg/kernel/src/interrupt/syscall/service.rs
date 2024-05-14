@@ -107,3 +107,11 @@ pub fn sys_wait_pid(args: &SyscallArgs, context: &mut ProcessContext) {
 pub fn sys_get_pid() -> u16 {
     proc::get_current_pid().0
 }
+
+pub fn sys_clock() -> i64 {
+    if let Some(t) = clock::now() {
+        return t.and_utc().timestamp_nanos_opt().unwrap_or_default();
+    } else {
+        return -1;
+    }
+}

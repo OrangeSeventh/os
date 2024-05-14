@@ -22,3 +22,4 @@ linked_list_allocator = "0.10"
 volatile = "0.5"
 pc-keyboard = "0.7.0"
 xmas-elf = "0.9"
+chrono = { version = "0.4", default-features = false, features = ["alloc"] }

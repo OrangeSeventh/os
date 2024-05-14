@@ -10,7 +10,17 @@ impl Stdin {
     fn new() -> Self {
         Self
     }
-
+    pub fn test(&self) -> String {
+        "test".to_string()
+    }
+    pub fn read_char_with_buf(&self, buf: &mut[u8]) -> Option<char> {
+        if let Some(bytes)= sys_read(0, buf) {
+            if bytes > 0 {
+                return Some(String::from_utf8_lossy(&buf[..bytes]).to_string().remove(0));
+            }
+        }
+        None
+    }
     pub fn read_line(&self) -> String {
         // FIXME: allocate string
         // FIXME: read from input buffer
@@ -18,7 +28,45 @@ impl Stdin {
         // FIXME: handle backspace / enter...
         // FIXME: return string
 
-        String::new()
+        // String::new()
+        let mut string = String::new();
+        let mut buf = vec![0; 4];
+        loop {
+            if let Some(k) = self.read_char_with_buf(&mut buf[..4]) {
+                match k {
+                    //换行
+                    '\n' => {
+                        stdout().write("\n");
+                        break;
+                    }
+                    //回车
+                    '\x03' => {
+                        string.clear();
+                        break;
+                    }
+                    //ctrl+d
+                    '\x04' => {
+                        string.clear();
+                        string.push('\x04');
+                        break;
+                    }
+                    //退格
+                    '\x08' => {
+                        if !string.is_empty() {
+                            stdout().write("\x08");
+                            string.pop();
+                        }
+                    }
+                    '\x00'..='\x1F' => {}
+                    //正常字符
+                    c => {
+                        self::print!("{}", k);
+                        string.push(c);
+                    }
+                }
+            }
+        }
+        string
     }
 }
 

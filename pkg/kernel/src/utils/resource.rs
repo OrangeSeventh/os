@@ -1,5 +1,8 @@
 use alloc::{collections::BTreeMap, string::String};
+use pc_keyboard::DecodedKey;
 use spin::Mutex;
+
+use crate::input::try_pop_key;
 
 #[derive(Debug, Clone)]
 pub enum StdIO {
@@ -67,7 +70,13 @@ impl Resource {
             Resource::Console(stdio) => match stdio {
                 StdIO::Stdin => {
                     // FIXME: just read from kernel input buffer
-                    Some(0)
+                    if buf.len() < 4{ // 没有读取任何数据
+                        return Some(0);
+                    } else if let Some(DecodedKey:: Unicode(k))=try_pop_key() {
+                        return Some(k.encode_utf8(buf).len()); // 使用 Unicode 字符 k 的 encode_utf8 方法将字符编码为 UTF-8 并存储到 buf 中，然后返回实际写入的字节数
+                    } else {
+                        return Some(0);
+                    }
                 }
                 _ => None,
             },

@@ -1,5 +1,5 @@
 use super::*;
-use crate::memory::*;
+use crate::memory::{self, *};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use spin::*;
@@ -247,6 +247,8 @@ impl ProcessInner {
         let stack_segment = elf::map_range(stack_bot, STACK_DEF_PAGE, &mut mapper, frame_alloc, true).unwrap();
 
         let proc_data = self.proc_data.as_mut().unwrap();
+        proc_data.code_memory = code_segments.iter().map(|seg| seg.count()).sum();
+        proc_data.stack_memory = stack_segment.count();
         proc_data.code_segments = Some(code_segments);
         proc_data.stack_segment = Some(stack_segment);
         stack_bot
@@ -306,13 +308,16 @@ impl core::fmt::Debug for Process {
 impl core::fmt::Display for Process {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         let inner = self.inner.read();
+        let (size, unit) = memory::humanized_sizes(inner.get_memory_usage() as u64 * 4096);
         write!(
             f,
-            " #{:-3} | #{:-3} | {:12} | {:7} | {:?}",
+            " #{:-3} | #{:-3} | {:12} | {:7} | {:5} {} | {:?}",
             self.pid.0,
             inner.parent().map(|p| p.pid.0).unwrap_or(0),
             inner.name,
             inner.ticks_passed,
+            size,
+            unit,
             inner.status
         )?;
         Ok(())
