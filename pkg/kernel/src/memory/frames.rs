@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use boot::{MemoryMap, MemoryType};
 use x86_64::structures::paging::{FrameAllocator, FrameDeallocator, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
@@ -15,6 +16,7 @@ pub struct BootInfoFrameAllocator {
     size: usize,
     used: usize,
     frames: BootInfoFrameIter,
+    free_frames: Vec<PhysFrame>, //save free frames
 }
 
 impl BootInfoFrameAllocator {
@@ -28,6 +30,7 @@ impl BootInfoFrameAllocator {
             size,
             frames: create_frame_iter(memory_map),
             used: 0,
+            free_frames: Vec::new(), 
         }
     }
 
@@ -42,14 +45,23 @@ impl BootInfoFrameAllocator {
 
 unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame> {
-        self.used += 1;
-        self.frames.next()
+        // self.used += 1;
+        // self.frames.next()
+        if let Some(frame) = self.free_frames.pop() {
+            // 如果 free_frames 向量中有帧，就直接使用这些帧
+            Some(frame)
+        } else {
+            // 否则，从内存映射中继续获取新的帧
+            self.used += 1;
+            self.frames.next()
+        }
     }
 }
 
 impl FrameDeallocator<Size4KiB> for BootInfoFrameAllocator {
-    unsafe fn deallocate_frame(&mut self, _frame: PhysFrame) {
+    unsafe fn deallocate_frame(&mut self, frame: PhysFrame) {
         // TODO: deallocate frame (not for lab 2)
+        self.free_frames.push(frame); // 将帧放回 free_frames 向量中
     }
 }
 

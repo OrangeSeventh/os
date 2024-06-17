@@ -13,7 +13,7 @@ pub fn kernel_main(boot_info: &'static boot::BootInfo) -> ! {
     ysos::init(boot_info);
     // proc::list_app();
     info!("init start");
-    spawn_init();
+    // spawn_init();
     ysos::wait(spawn_init());
     ysos::shutdown(boot_info);
 }
@@ -24,5 +24,5 @@ pub fn spawn_init() -> proc::ProcessId {
 
     proc::list_app();
     info!("before res");
-    proc::spawn("hello").unwrap()
+    proc::spawn("sh").unwrap()
 }

@@ -2,11 +2,10 @@
 mod macros;
 #[macro_use]
 mod regs;
-
-// pub mod clock;
+mod uefi;
+pub mod clock;
 pub mod func;
 pub mod logger;
-use alloc::format;
 pub use macros::*;
 pub use manager::get_process_manager;
 pub use regs::*;
@@ -51,11 +50,19 @@ __  __      __  _____            ____  _____
 // }
 
 pub fn wait(pid: ProcessId) {
+    // loop {
+    //     // 尝试获取进程的退出状态
+    //     // let exit_code = get_process_manager().get_proc(&pid).unwrap().read().exit_code();
+    //     let exit_code = get_process_manager().get_exit_code(pid);
+    //         if exit_code.is_none() {
+    //             x86_64::instructions::hlt();
+    //         } else {
+    //             break;
+    //         }
+    //     }
     loop {
-        // 尝试获取进程的退出状态
-        // let exit_code = get_process_manager().get_proc(&pid).unwrap().read().exit_code();
-        let exit_code = get_process_manager().get_exit_code(pid);
-        if exit_code.is_none() {
+        if still_alive(pid) {
+            // Why? Check reflection question 5
             x86_64::instructions::hlt();
         } else {
             break;

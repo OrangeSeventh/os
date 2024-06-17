@@ -51,11 +51,11 @@ pub fn map_range(
     let range_start = Page::containing_address(VirtAddr::new(addr));
     let range_end = range_start + count;
 
-    trace!(
-        "Page Range: {:?}({})",
-        Page::range(range_start, range_end),
-        count
-    );
+    // trace!(
+    //     "Page Range: {:?}({})",
+    //     Page::range(range_start, range_end),
+    //     count
+    // );
 
     // default flags for stack
     let mut flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
@@ -229,4 +229,32 @@ fn load_segment(
     let end_page = Page::containing_address(virt_start_addr + mem_size - 1u64);
     let pages = Page::range_inclusive(start_page, end_page);
     Ok(pages)
+}
+
+pub fn unmap_range(
+    addr: u64,
+    count: u64,
+    page_table: &mut impl Mapper<Size4KiB>,
+    frame_deallocator: &mut impl FrameDeallocator<Size4KiB>,
+    dealloc: bool,
+) -> Result<(), UnmapError> {
+    let range_start = Page::containing_address(VirtAddr::new(addr));
+    let range_end = range_start + count;
+
+    // trace!(
+    //     "Unmapping Page Range: {:?}({})",
+    //     Page::range(range_start, range_end),
+    //     count
+    // );
+
+    for page in Page::range(range_start, range_end) {
+        let (frame,flush) = page_table.unmap(page)?;
+        if dealloc {
+            unsafe{
+                frame_deallocator.deallocate_frame(frame);   
+            }
+        }
+        flush.flush();
+    }
+    Ok(())
 }

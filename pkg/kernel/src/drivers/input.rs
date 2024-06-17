@@ -1,5 +1,5 @@
 use crate::drivers::uart16550::SerialPort;
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use core::sync::atomic::{AtomicBool, Ordering};
 use crossbeam_queue::ArrayQueue;
 use lazy_static::lazy_static;

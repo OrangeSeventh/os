@@ -1,13 +1,15 @@
 pub mod context;
 mod data;
 pub mod manager;
-use crate::resource::Resource;
+// use crate::resource::Resource;
 mod paging;
 mod pid;
 mod process;
 mod processor;
+pub mod sync;
 
 use crate::memory::PAGE_SIZE;
+use crate::resource::Resource;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use manager::*;
@@ -22,6 +24,8 @@ pub use pid::ProcessId;
 use x86_64::structures::idt::PageFaultErrorCode;
 use x86_64::VirtAddr;
 use xmas_elf::ElfFile;
+
+use self::sync::SemaphoreResult;
 
 // 0xffff_ff00_0000_0000 is the kernel's address space
 pub const STACK_MAX: u64 = 0x0000_4000_0000_0000;
@@ -219,17 +223,94 @@ pub fn still_alive(pid: ProcessId) -> bool {
     })
 }
 
-pub fn wait_pid(pid: ProcessId, context: &mut ProcessContext) {
+pub fn wait_pid(pid: ProcessId) -> isize {
     x86_64::instructions::interrupts::without_interrupts(|| {
         let manager = get_process_manager();
         if let Some(ret) = manager.wait_pid(pid) {
-            context.set_rax(ret as usize)
+            ret
         } else {
-            manager.save_current(context);
-            manager.switch_next(context);
+            -1
         }
     })
 }
 pub fn get_current_pid() -> ProcessId {
     x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().current().pid())
+}
+
+pub fn fork(context: &mut ProcessContext) {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let manager = get_process_manager();
+        // FIXME: save_current as parent
+        let pid: ProcessId = manager.save_current(context);
+        // FIXME: fork to get child
+        let child = manager.fork();
+        // FIXME: push to child & parent to ready queue
+        manager.push_ready(child.pid());
+        manager.push_ready(pid);
+        // FIXME: switch to next process
+        manager.switch_next(context);
+        // print_process_list();
+    })
+}
+
+pub fn new_sem(key: u32, count: usize) -> usize {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        if get_process_manager().current().write().new_sem(key, count) {
+            0
+        } else {
+            1
+        }
+    })
+}
+
+pub fn remove_sem(key: u32) -> usize {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        if get_process_manager().current().write().remove_sem(key) {
+            0
+        } else {
+            1
+        }
+    })
+}
+
+pub fn sem_signal(key: u32, context: &mut ProcessContext) {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let manager = get_process_manager();
+        let ret = manager.current().write().sem_signal(key);
+        match ret {
+            SemaphoreResult::Ok => context.set_rax(0),
+            SemaphoreResult::NotExist => context.set_rax(1),
+            SemaphoreResult::WakeUp(pid) => manager.wake_up(pid),
+            _ => unreachable!(),
+        }
+    })
+}
+
+pub fn sem_wait(key: u32, context: &mut ProcessContext) {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let manager = get_process_manager();
+        let pid = processor::get_pid();
+        let ret = manager.current().write().sem_wait(key, pid);
+        match ret {
+            SemaphoreResult::Ok => context.set_rax(0),
+            SemaphoreResult::Block(pid) => {
+                //保存当前进程上下文
+                manager.save_current(context);
+                // 阻塞
+                manager.block(pid);
+                // 进行上下文切换
+                manager.switch_next(context);
+            }
+            SemaphoreResult::NotExist => context.set_rax(1),
+            _ => unreachable!(),
+        }
+    })
+}
+
+pub fn open(path: &str, mode: u8) -> Option<u8> {
+    x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().open(path, mode))
+}
+
+pub fn close(fd: u8) -> bool {
+    x86_64::instructions::interrupts::without_interrupts(|| get_process_manager().close(fd))
 }

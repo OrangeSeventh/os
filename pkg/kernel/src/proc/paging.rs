@@ -30,7 +30,18 @@ impl PageTableContext {
             reg: Arc::new(Cr3RegValue::new(frame, flags)),
         }
     }
+    // lab5实现fork
+    
+    pub fn using_count(&self) -> usize {
+        Arc::strong_count(&self.reg)
+    }
 
+    pub fn fork(&self) -> Self {
+        // forked process shares the page table
+        Self {
+            reg: self.reg.clone(),
+        }
+    }
     /// Create a new page table object based on current page table.
     pub fn clone_l4(&self) -> Self {
         // 1. alloc new page table
