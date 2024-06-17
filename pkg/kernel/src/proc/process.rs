@@ -1,8 +1,11 @@
+use core::ptr::copy_nonoverlapping;
+
 use super::*;
 use crate::memory::{self, *};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use spin::*;
+
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::page::PageRange;
 use x86_64::structures::paging::*;
@@ -76,12 +79,12 @@ impl Process {
     pub fn kill(&self, ret: isize) {
         let mut inner = self.inner.write();
 
-        debug!(
-            "Killing process {}#{} with ret code: {}",
-            inner.name(),
-            self.pid,
-            ret
-        );
+        // debug!(
+        //     "Killing process {}#{} with ret code: {}",
+        //     inner.name(),
+        //     self.pid,
+        //     ret
+        // );
 
         inner.kill(ret);
     }
@@ -129,10 +132,92 @@ impl Process {
         inner.proc_data.as_mut().unwrap().set_stack(VirtAddr::new(stack_bot), STACK_DEF_PAGE);
         VirtAddr::new(stack_top)
     }
+    pub fn fork(self: &Arc<Self>) -> Arc<Self> {
+        // FIXME: lock inner as write
+        let mut inner = self.inner.write();
+        // FIXME: inner fork with parent weak ref
+        // FOR DBG: maybe print the child process info
+        //          e.g. parent, name, pid, etc.
+        let child_inner = inner.fork(Arc::downgrade(self));
+        // FIXME: make the arc of child
+        let child = Arc::new(Self { pid: ProcessId::new(), inner: Arc::new(RwLock::new(child_inner)) });
 
+        // FIXME: add child to current process's children list
+        inner.children.push(child.clone());
+        // FIXME: set fork ret value for parent with `context.set_rax`  
+        inner.context.set_rax(child.pid().0 as usize);      
+        // FIXME: mark the child as ready & return it        
+        child
+    }
 }
 
 impl ProcessInner {
+    pub fn fork(&mut self, parent: Weak<Process>) -> ProcessInner {
+        let stack_info = self.stack_segment.unwrap();
+        // FIXME: fork the process virtual memory struct
+        let cur_stack_base = stack_info.start.start_address().as_u64();
+        let mut child_stack_bottom = stack_info.start.start_address().as_u64() - (self.children.len() as u64 + 1) * STACK_MAX_SIZE;
+        // FIXME: clone the process data struct
+        let mut child_proc_data = self.proc_data.as_ref().unwrap().clone();
+        let child_page_table = self.page_table.as_ref().unwrap().fork();
+
+        let frame_allocator = &mut *get_frame_alloc_for_sure();
+        let mut mapper = self.page_table.as_ref().unwrap().mapper();
+        while elf::map_range(child_stack_bottom, stack_info.count() as u64, &mut mapper, frame_allocator, true).is_err() {
+            trace!("Failed: Map thread stack to {:#x}.", child_stack_bottom);
+            child_stack_bottom -= STACK_MAX_SIZE;
+        }
+
+        let child_stack_top: u64 = {
+            let parent_stack_count = child_proc_data.stack_segment.unwrap().count();
+            let src_addr = child_proc_data.stack_segment.unwrap().start.start_address().as_u64();
+            self.clone_range(src_addr, child_stack_bottom, parent_stack_count);
+            child_stack_bottom + parent_stack_count as u64 * Size4KiB::SIZE as u64
+        };
+        let stack = Page::<Size4KiB>::range(
+            Page::<Size4KiB>::containing_address(VirtAddr::new_truncate(child_stack_bottom)),
+            Page::<Size4KiB>::containing_address(VirtAddr::new_truncate(child_stack_top)),
+        );
+
+        // FIXME: update child's context with new *stack pointer*
+        //          > update child's stack to new base (from forked stack)
+        //          > keep lower bits of *rsp*, update the higher bits
+        //          > also update the stack record in process data
+        let mut child_context = self.context.clone();
+        child_context.set_stack_offset(child_stack_bottom - cur_stack_base);
+        // FIXME: set the return value 0 for child with `context.set_rax`
+        child_context.set_rax(0);
+        child_proc_data.stack_memory = stack.count();
+        child_proc_data.code_memory = 0;
+        child_proc_data.stack_segment = Some(stack);
+        // FIXME: construct the child process inner
+        Self {
+            name: self.name.clone(),
+            parent: Some(parent),
+            children: Vec::new(),
+            ticks_passed: 0,
+            status: ProgramStatus::Ready,
+            exit_code: None,
+            context: child_context,
+            page_table: Some(child_page_table),
+            proc_data: Some(child_proc_data),
+        }
+        // NOTE: return inner because there's no pid record in inner
+    }
+    
+    fn clone_range(&self, src_addr: u64, dest_addr: u64, page_count: usize) {
+        trace!(
+            "Cloning range: src={:#x}, dest={:#x}, pages={}",
+            src_addr,
+            dest_addr,
+            page_count
+        );
+        let src_ptr = src_addr as *const u8;
+        let dest_ptr = dest_addr as *mut u8;
+        unsafe {
+            copy_nonoverlapping(src_ptr, dest_ptr, page_count * Size4KiB::SIZE as usize);
+        }
+    }
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -151,6 +236,10 @@ impl ProcessInner {
 
     pub fn resume(&mut self) {
         self.status = ProgramStatus::Running;
+    }
+
+    pub fn block(&mut self) {
+        self.status = ProgramStatus::Blocked;
     }
 
     pub fn exit_code(&self) -> Option<isize> {
@@ -203,7 +292,7 @@ impl ProcessInner {
         // 改为lab4的删除进程数据
         self.proc_data.take();
         self.page_table.take();
-        info!("kill completed,status {:#?}",self.status);
+        // info!("kill completed,status {:#?}",self.status);
         // for child in self.children.iter(){
         //     let mut child_inner = child.inner.write();
         //     child_inner.parent = None;
@@ -254,7 +343,22 @@ impl ProcessInner {
         stack_bot
     }
 
-
+    #[inline]
+    pub fn new_sem(&mut self, key: u32, value: usize) -> bool {
+        self.semaphores.write().insert(key, value)
+    }
+    #[inline]
+    pub fn remove_sem(&mut self, key: u32) -> bool {
+        self.semaphores.write().remove(key)
+    }
+    #[inline]
+    pub fn sem_signal(&mut self, key: u32) -> SemaphoreResult {
+        self.semaphores.read().signal(key)
+    }
+    #[inline]
+    pub fn sem_wait(&mut self, key: u32, pid: ProcessId) -> SemaphoreResult {
+        self.semaphores.read().wait(key, pid)
+    }
 }
 
 impl core::ops::Deref for Process {

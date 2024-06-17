@@ -43,7 +43,13 @@ impl ProcessContext {
     pub fn restore(&self, context: &mut ProcessContext) {
         context.as_mut().as_mut_ptr().write(self.value);
     }
-
+    
+    // lab5辅助实现fork
+    #[inline]
+    pub fn set_stack_offset(&mut self, offset: u64) {
+        self.value.stack_frame.stack_pointer += offset;
+    }
+    
     pub fn init_stack_frame(&mut self, entry: VirtAddr, stack_top: VirtAddr) {
         self.value.stack_frame.stack_pointer = stack_top;
         self.value.stack_frame.instruction_pointer = entry;

@@ -1,6 +1,7 @@
 use alloc::{collections::BTreeMap, string::String};
 use pc_keyboard::DecodedKey;
 use spin::Mutex;
+use storage::FileHandle;
 
 use crate::input::try_pop_key;
 
@@ -60,6 +61,7 @@ impl ResourceSet {
 
 #[derive(Debug)]
 pub enum Resource {
+    File(FileHandle),
     Console(StdIO),
     Null,
 }
@@ -80,6 +82,15 @@ impl Resource {
                 }
                 _ => None,
             },
+            Resource::File(file) => {
+                let ret = file.read(buf);
+                if let Err(e) = ret {
+                    error!("Failed to read file: {:?}", e);
+                    None
+                } else {
+                    Some(ret.unwrap())
+                }
+            }
             Resource::Null => Some(0),
         }
     }
@@ -97,6 +108,7 @@ impl Resource {
                     Some(buf.len())
                 }
             },
+            Resource::File(_) => todo!(),
             Resource::Null => Some(buf.len()),
         }
     }

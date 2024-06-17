@@ -9,7 +9,7 @@ pub fn init() {
         // Some("info") => LevelFilter::Info,
         // Some("debug") => LevelFilter::Debug,
         // Some("trace") => LevelFilter::Trace,
-        _ => LevelFilter::Trace,  // 默认日志级别为 info
+        _ => LevelFilter::Info,  // 默认日志级别为 info
     });
     log::set_max_level(LevelFilter::Trace);
     // FIXME: Configure the logger

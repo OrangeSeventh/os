@@ -66,7 +66,7 @@ pub fn dispatcher(context: &mut ProcessContext) {
         Syscall::Exit => service::exit_process(&args, context),
         // pid: arg0 as u16 -> status: isize
         /* FIXME: check if the process is running or get retcode */
-        Syscall::WaitPid => sys_wait_pid(&args, context),
+        Syscall::WaitPid => context.set_rax(sys_wait_pid(&args) as usize),
 
         // None
         /* FIXME: list processes */
@@ -85,6 +85,11 @@ pub fn dispatcher(context: &mut ProcessContext) {
         Syscall::Deallocate => sys_deallocate(&args),
         // Unknown
         Syscall::Unknown => warn!("Unhandled syscall: {:x?}", context.regs.rax),
+        Syscall::Fork => sys_fork(context),
+        Syscall::Sem => sys_sem(&args, context),
+        Syscall::ListDir => sys_list_dir(&args),
+        Syscall::Open => context.set_rax(sys_open(&args)),
+        Syscall::Close => context.set_rax(sys_close(&args)),
     }
 }
 

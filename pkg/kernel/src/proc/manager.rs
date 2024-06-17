@@ -4,6 +4,8 @@ use crate::memory::{
     allocator::{ALLOCATOR, HEAP_SIZE},
     get_frame_alloc_for_sure, PAGE_SIZE,
 };
+use storage::FileSystem;
+use crate::filesystem::get_rootfs;
 use alloc::{collections::*, format, sync::*};
 use spin::{Mutex, RwLock};
 
@@ -376,13 +378,13 @@ impl ProcessManager {
 
     pub fn kill_self(&self, ret: isize) {
         let current_pid = self.current().pid();
-        info!("Process: {} is killed", current_pid);
+        // info!("Process: {} is killed", current_pid);
         self.kill(current_pid, ret);
     }
 
     pub fn kill(&self, pid: ProcessId, ret: isize) {
         if let Some(process) = self.get_proc(&pid) {
-            info!("Process: {} is killed", pid);
+            // info!("Process: {} is killed", pid);
             process.kill(ret);
         }
     }
@@ -390,5 +392,45 @@ impl ProcessManager {
         self.get_proc(&pid)
             .map(|p| p.read().status() != ProgramStatus::Dead)
             .unwrap_or(false)
+    }
+    pub fn fork(&self) -> Arc<Process> {
+        // FIXME: get current process
+        let current = self.current();
+        // FIXME: fork to get child
+        let child = current.fork();
+        // FIXME: add child to process list
+        self.add_proc(child.pid(), child.clone());
+        // FOR DBG: maybe print the process ready queue?
+        child
+    }
+    pub fn wake_up(&self, pid: ProcessId) {
+        if let Some(proc) = self.get_proc(&pid) {
+            proc.write().pause();
+            self.push_ready(pid);
+        }
+    }
+    pub fn block(&self, pid: ProcessId) {
+        if let Some(proc) = self.get_proc(&pid) {
+            proc.write().block();
+        }
+    }
+
+    pub fn open(&self, path: &str, _mode: u8) -> Option<u8> {
+        let res = match path {
+            path => match get_rootfs().open_file(path) {
+                Ok(file) => Resource::File(file),
+                Err(_) => return None,
+            },
+        };
+        // info!("manager: Opening {}...\n{:#?}", path, &res);
+        let fd = self.current().write().open(res);
+        Some(fd)
+    }
+    pub fn close(&self, fd: u8) ->bool {
+        if fd < 3 {
+            false
+        } else {
+            self.current().write().close(fd)
+        }
     }
 }

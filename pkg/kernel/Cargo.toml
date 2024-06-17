@@ -5,6 +5,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+storage = { package = "ysos_storage", path = "../storage" }
 elf = { package = "ysos_elf", path = "../elf" }
 boot = { package = "ysos_boot", path = "../boot", default-features = false }
 syscall_def = { package = "ysos_syscall", path = "../syscall"}

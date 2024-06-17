@@ -54,7 +54,7 @@ pub fn sys_read(args: &SyscallArgs) -> usize {
 pub fn exit_process(args: &SyscallArgs, context: &mut ProcessContext) {
     // FIXME: exit process with retcode
     let retcode = args.arg0 as isize;
-    info!("exit_process: {}", retcode);
+    // info!("exit_process: {}", retcode);
     proc::exit(retcode, context);
 }
 
@@ -99,9 +99,10 @@ pub fn sys_deallocate(args: &SyscallArgs) {
     }
 }
 
-pub fn sys_wait_pid(args: &SyscallArgs, context: &mut ProcessContext) {
+pub fn sys_wait_pid(args: &SyscallArgs) -> usize {
     let pid = proc::ProcessId(args.arg0 as u16);
-    proc::wait_pid(pid, context);
+    let ret = proc::wait_pid(pid);
+    ret as usize
 }
 
 pub fn sys_get_pid() -> u16 {
@@ -114,4 +115,43 @@ pub fn sys_clock() -> i64 {
     } else {
         return -1;
     }
+}
+
+pub fn sys_fork(context: &mut ProcessContext) {
+    proc::fork(context);
+}
+
+
+pub fn sys_sem(args: &SyscallArgs, context: &mut ProcessContext) {
+    match args.arg0 {
+        0 => context.set_rax(proc::new_sem(args.arg1 as u32, args.arg2)),
+        1 => context.set_rax(proc::remove_sem(args.arg1 as u32)),
+        2 => proc::sem_signal(args.arg1 as u32, context),
+        3 => proc::sem_wait(args.arg1 as u32, context),
+        _ => context.set_rax(usize::MAX),
+    }
+}
+
+pub fn sys_list_dir(args: &SyscallArgs) {
+    let root = unsafe {
+        core::str::from_utf8_unchecked(core::slice::from_raw_parts(args.arg0 as *const u8, args.arg1,))
+    };
+    crate::drivers::filesystem::ls(root);
+}
+
+pub fn sys_open(args: &SyscallArgs) -> usize {
+    let path = unsafe {
+        core::str::from_utf8_unchecked(core::slice::from_raw_parts(args.arg0 as *const u8, args.arg1,))
+    };
+    match proc::open(path, args.arg2 as u8) {
+        Some(fd) => fd as usize,
+        None => {
+            warn!("sys_open failed, path: {}", path);
+            0
+        }
+    }
+}
+
+pub fn sys_close(args: &SyscallArgs) -> usize {
+    proc::close(args.arg0 as u8) as usize
 }

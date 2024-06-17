@@ -51,11 +51,11 @@ pub fn map_range(
     let range_start = Page::containing_address(VirtAddr::new(addr));
     let range_end = range_start + count;
 
-    trace!(
-        "Page Range: {:?}({})",
-        Page::range(range_start, range_end),
-        count
-    );
+    // trace!(
+    //     "Page Range: {:?}({})",
+    //     Page::range(range_start, range_end),
+    //     count
+    // );
 
     // default flags for stack
     let mut flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;

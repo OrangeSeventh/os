@@ -101,3 +101,14 @@ pub fn stdout() -> Stdout {
 pub fn stderr() -> Stderr {
     Stderr::new()
 }
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[repr(u8)]
+pub enum FileMode {
+    ReadOnly = 0,
+    ReadWriteAppend = 1,
+    ReadWriteTruncate = 2,
+    ReadWriteCreate = 3,
+    ReadWriteCreateOrTruncate = 4,
+    ReadWriteCreateOrAppend = 5,
+}

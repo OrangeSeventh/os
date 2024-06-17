@@ -5,6 +5,7 @@ use x86_64::structures::paging::{
     Page,
 };
 use crate::{resource, ResourceSet};
+use self::sync::SemaphoreSet;
 use super::*;
 
 #[derive(Debug, Clone)]
@@ -12,6 +13,8 @@ pub struct ProcessData {
     // shared data
     pub(super) env: Arc<RwLock<BTreeMap<String, String>>>,
     pub(super) resources: Arc<RwLock<ResourceSet>>,
+    pub(super) file_handles: Arc<RwLock<BTreeMap<u8, Resource>>>,
+    pub(super) semaphores: Arc<RwLock<SemaphoreSet>>,
     // process specific data
     pub(super) stack_segment: Option<PageRange>,
     pub(super) code_segments: Option<Vec<PageRangeInclusive>>,
@@ -21,13 +24,19 @@ pub struct ProcessData {
 
 impl Default for ProcessData {
     fn default() -> Self {
+        let mut file_handles = BTreeMap::new();
+        file_handles.insert(0, Resource::Console(resource::StdIO::Stdin));
+        file_handles.insert(1, Resource::Console(resource::StdIO::Stdout));
+        file_handles.insert(2, Resource::Console(resource::StdIO::Stderr));
         Self {
             env: Arc::new(RwLock::new(BTreeMap::new())),
             resources: Arc::new(RwLock::new(ResourceSet::default())),
+            file_handles: Arc::new(RwLock::new(file_handles)),
             stack_segment: None,
             code_segments: None,
             stack_memory: 0,
             code_memory: 0,
+            semaphores: Arc::new(RwLock::new(SemaphoreSet::default())),
         }
     }
 }
@@ -90,4 +99,10 @@ impl ProcessData {
         self.stack_memory + self.code_memory
     }
     
+    pub fn open(&mut self, res: Resource) -> u8 {
+        self.resources.write().open(res)
+    }
+    pub fn close(&mut self, fd: u8) -> bool {
+        self.resources.write().close(fd)
+    }
 }

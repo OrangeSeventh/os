@@ -46,8 +46,9 @@ pub fn init(boot_info: &'static BootInfo) {
     clock::init(boot_info); // init clock
     proc::init(boot_info); // 进程管理器初始化
     interrupt::init(); // init interrupts
+    filesystem::init(); // init filesystem
 
-    info!("memory Enabled.");
+    // info!("memory Enabled.");
     x86_64::instructions::interrupts::enable();
     info!("Interrupts Enabled.");
 
